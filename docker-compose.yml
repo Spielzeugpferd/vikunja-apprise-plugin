@@ -1,0 +1,26 @@
+# Local dev instance of Apprise API for testing this plugin against.
+#
+# Intentionally NOT exposed beyond localhost by default — Apprise API has no
+# built-in authentication, see README.md "Security". For anything beyond local
+# development, put it on an internal-only Docker network with no published
+# port at all, reachable only from the Vikunja backend container.
+services:
+  apprise:
+    image: caronc/apprise:latest
+    container_name: vikunja-apprise-dev
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      APPRISE_STATEFUL_MODE: simple
+      APPRISE_WORKER_COUNT: "1"
+      APPRISE_ADMIN: "y"
+    volumes:
+      - apprise-config:/config
+      - apprise-attach:/attach
+      - apprise-plugin:/plugin
+
+volumes:
+  apprise-config:
+  apprise-attach:
+  apprise-plugin:
