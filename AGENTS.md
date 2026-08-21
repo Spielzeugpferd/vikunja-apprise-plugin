@@ -104,6 +104,21 @@ material out of Vikunja's data at rest entirely; this plugin holds no secrets of
 - If a future change needs a Vikunja-internal package that isn't yet exposed, that requires running
   `mage generate:yaegi-symbols` inside the Vikunja checkout (regenerates `pkg/yaegi_symbols/*.go`)
   — a change to Vikunja's own repo, not this one. Prefer working within what's already exposed.
+- **`os.Getenv` does not see the real process environment from inside interpreted code.** Found via
+  the sibling `vikunja-ntfy` plugin's live end-to-end testing (identical mechanism, so it applies
+  here too): with the env var visibly set on the running process (checked via `ps eww <pid>`),
+  `os.Getenv(...)` called from `main.go` still returned `""`. This plugin's fallback URLs
+  (`http://localhost:8000`, `vikunja-user-`) happened to match the values used in earlier manual
+  testing, which is exactly why this went unnoticed here — the plugin was silently ignoring the env
+  var and using its hardcoded default the whole time, and testing didn't catch it because the
+  default was *also* the intended value. Fixed by using `config.Key("plugins.apprise.<name>").GetString()`
+  instead (see `appriseBaseURL()`/`appriseConfigKey()`) — see `vikunja-ntfy/AGENTS.md`'s "Runtime
+  constraints" for the full explanation of why this works when `os.Getenv` doesn't.
+- **A plugin write that doesn't call `s.Commit()` silently rolls back with no error.**
+  `db.NewSession()` opens a transaction; `s.Close()` (deferred) rolls back anything not explicitly
+  committed. This plugin has no local write paths of its own (state lives in Apprise API), so it
+  isn't affected, but it's a real trap for any future write path — see `vikunja-ntfy/AGENTS.md` for
+  where this bit that plugin.
 
 ## Local development
 
@@ -185,3 +200,11 @@ Not yet exercised: the `notification.created` catch-all path (comments, assignme
 etc.) and the overdue-task listeners, against a real delivery target — only the reminder path has
 been proven end-to-end so far. The code path is the same, so this is a smaller gap than it sounds,
 but worth doing before relying on it.
+
+Since that test, `appriseBaseURL()`/`appriseConfigKey()` were changed from `os.Getenv` to
+`config.Key(...).GetString()` (see "Runtime constraints" above) — the original test happened to
+not catch that `os.Getenv` was silently non-functional, because its fallback matched the test's
+intended value. The config-reading mechanism itself has been proven correct (it's the same
+mechanism, verified live in `vikunja-ntfy`), but this plugin's *own* reminder-delivery test above
+has not been re-run since that change. Worth a quick re-run with a deliberately different
+`VIKUNJA_PLUGINS_APPRISE_APIURL` before treating that path as fully proven again.

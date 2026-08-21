@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
+	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/db"
 	"code.vikunja.io/api/pkg/events"
 	"code.vikunja.io/api/pkg/log"
@@ -66,15 +66,22 @@ func (p *ApprisePlugin) RegisterAuthenticatedRoutes(g *echo.Group) {
 // plugin's authenticated routes are the only sanctioned entry point: every
 // call below is scoped to the currently authenticated Vikunja user's own key.
 
+// os.Getenv does not see the host process's real environment from inside a
+// Yaegi-interpreted plugin (confirmed by live testing: it always returns "",
+// even though the same env var is visibly set on the running process via ps).
+// config.Key wraps viper directly — viper.AutomaticEnv() with SetEnvPrefix("vikunja")
+// still binds e.g. VIKUNJA_PLUGINS_APPRISE_APIURL to this key without Vikunja core
+// having to pre-declare it, and the actual env lookup happens in native code, not
+// through the interpreter, so it isn't affected by whatever breaks os.Getenv here.
 func appriseBaseURL() string {
-	if v := os.Getenv("VIKUNJA_APPRISE_API_URL"); v != "" {
+	if v := config.Key("plugins.apprise.apiurl").GetString(); v != "" {
 		return strings.TrimRight(v, "/")
 	}
 	return "http://localhost:8000"
 }
 
 func appriseConfigKey(userID int64) string {
-	prefix := os.Getenv("VIKUNJA_APPRISE_KEY_PREFIX")
+	prefix := config.Key("plugins.apprise.keyprefix").GetString()
 	if prefix == "" {
 		prefix = "vikunja-user-"
 	}

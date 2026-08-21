@@ -37,7 +37,7 @@ Vikunja interprets `main.go` at startup, no compiled binary and no Vikunja fork 
    ```bash
    VIKUNJA_PLUGINS_ENABLED=true
    VIKUNJA_PLUGINS_LOADER=yaegi
-   VIKUNJA_APPRISE_API_URL=http://apprise:8000   # wherever your Apprise API instance lives
+   VIKUNJA_PLUGINS_APPRISE_APIURL=http://apprise:8000   # wherever your Apprise API instance lives
    ```
 
 4. Restart Vikunja. There is no hot reload — the plugin directory is only read at startup.
